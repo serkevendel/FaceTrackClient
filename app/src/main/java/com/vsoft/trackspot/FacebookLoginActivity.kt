@@ -1,16 +1,14 @@
 package com.vsoft.trackspot
 
 import android.app.Activity
+import android.content.Intent
 import android.os.Bundle
+import com.facebook.AccessToken
 import com.facebook.CallbackManager
 import com.facebook.FacebookCallback
 import com.facebook.FacebookException
 import com.facebook.login.LoginResult
 import com.facebook.login.widget.LoginButton
-import android.content.Intent
-import com.facebook.AccessToken
-
-
 
 const val USER_ID = "com.vsoft.trackspot.USER_ID"
 
@@ -23,6 +21,7 @@ class FacebookLoginActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_facebook_login)
+
         loginButton = findViewById<LoginButton>(R.id.login_button)
 
         //Register login callback
