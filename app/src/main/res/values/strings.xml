@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">TrackSpot</string>
+    <string name="facebook_app_id">1862168067399874</string>
+    <string name="fb_login_protocol_scheme">fb1862168067399874</string>
+    <string name="welcome_text">Welcome to TrackSpot!</string>
+    <string name="hi">Hi</string>
+</resources>
