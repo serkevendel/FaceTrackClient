@@ -3,21 +3,25 @@ package com.vsoft.trackspot
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
+import android.support.v7.recyclerview.R.attr.layoutManager
+import android.support.v7.widget.LinearLayoutManager
+import android.support.v7.widget.RecyclerView
 import android.widget.TextView
 import android.widget.Toast
 import com.facebook.AccessToken
 import com.facebook.AccessTokenTracker
 import com.facebook.GraphRequest
-import com.vsoft.trackspot.dummy.DummyContent
+import com.vsoft.trackspot.adapter.FriendsAdapter
+import com.vsoft.trackspot.friends.FriendsContainer
+import org.json.JSONObject
 
 
-class FriendListActivity : Activity(), UserListFragment.OnListFragmentInteractionListener {
-    override fun onListFragmentInteraction(item: DummyContent.DummyItem?) {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
-    }
-
+class FriendListActivity : Activity(){
     var userTextView: TextView? = null
-    var friends: MutableList<User> = mutableListOf<User>()
+
+    private lateinit var recyclerView: RecyclerView
+    private lateinit var viewAdapter: RecyclerView.Adapter<*>
+    private lateinit var viewManager: RecyclerView.LayoutManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -39,8 +43,13 @@ class FriendListActivity : Activity(), UserListFragment.OnListFragmentInteractio
             text = userId
         }
 
-        requestFriends(userId)
+        viewManager = LinearLayoutManager(this)
+        viewAdapter = FriendsAdapter(FriendsContainer.friends)
 
+        recyclerView = findViewById<RecyclerView>(R.id.recyclerView_friends).apply {
+            layoutManager = viewManager
+            adapter = viewAdapter
+        }
 
     }
 
@@ -52,24 +61,4 @@ class FriendListActivity : Activity(), UserListFragment.OnListFragmentInteractio
         startActivity(intent)
     }
 
-    private fun requestFriends(userId: String) {
-        val accessToken = AccessToken.getCurrentAccessToken()
-        val request = GraphRequest.newGraphPathRequest(
-                accessToken,
-                "/$userId/friends"
-        ) {
-            val friendDataArray = it.jsonObject.getJSONArray("data")
-            for (i in 0..(friendDataArray.length() - 1)) {
-                val friendDataObject = friendDataArray.getJSONObject(i)
-                val friend = User()
-                friend.id = friendDataObject.getInt("id")
-                friend.name = friendDataObject.getString("name")
-                friends.add(friend)
-                // Your code here
-            }
-            Toast.makeText(this, "friends are updated!", Toast.LENGTH_SHORT).show()
-        }
-
-        request.executeAsync()
-    }
 }
