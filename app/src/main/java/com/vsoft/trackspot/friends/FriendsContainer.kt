@@ -5,19 +5,19 @@ import com.vsoft.trackspot.User
 object FriendsContainer {
 
     /**
-     * An array of sample (dummy) items.
+     * An array of users representing the friends of the logged in user
      */
-    val friends: MutableList<User> = ArrayList()
+    var friends: MutableList<User> = ArrayList()
 
-    public fun addFriend(user: User){
+    fun addFriend(user: User) {
         friends.add(user)
     }
 
-    public fun removeFriend(user: User){
+    fun removeFriend(user: User) {
         friends.remove(user)
     }
 
-    public fun clear() {
+    fun clear() {
         friends.clear()
     }
 }
