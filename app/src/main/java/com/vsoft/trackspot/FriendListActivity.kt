@@ -8,11 +8,12 @@ import android.support.v7.widget.RecyclerView
 import android.widget.TextView
 import com.facebook.AccessToken
 import com.facebook.AccessTokenTracker
+import com.facebook.GraphRequest
 import com.vsoft.trackspot.adapter.FriendsAdapter
 import com.vsoft.trackspot.friends.FriendsContainer
 
 
-class FriendListActivity : Activity(){
+class FriendListActivity : Activity() {
     var userTextView: TextView? = null
 
     private lateinit var recyclerView: RecyclerView
@@ -48,8 +49,8 @@ class FriendListActivity : Activity(){
             adapter = viewAdapter
         }
 
-        addDummyFriends()
-
+        //addDummyFriends() -for testing
+        getFriends()
     }
 
     private fun switchToFacebookLoginActivity() {
@@ -61,18 +62,29 @@ class FriendListActivity : Activity(){
     }
 
     private fun addDummyFriends() {
-        val user1 = User()
-        user1.id = 1234
-        user1.name = "Dummy Name1"
-
-        val user2 = User()
-        user2.id = 2345
-        user2.name = "Dummy Name2"
-
-        viewAdapter.getDataSet().add(user1)
-        viewAdapter.getDataSet().add(user2)
-
+        val user1 = User(1234, "Dummy Name1")
+        val user2 = User(2345, "Dummy Name2")
+        FriendsContainer.addFriend(user1)
+        FriendsContainer.addFriend(user2)
         viewAdapter.notifyDataSetChanged()
     }
 
+    private fun getFriends() {
+        val accessToken = AccessToken.getCurrentAccessToken()
+        val friendRequest = GraphRequest.newMyFriendsRequest(
+                accessToken
+        ) { jsonArray, response ->
+            // Application code for users friends
+            FriendsContainer.clear()
+            for (i in 0 until jsonArray.length()) {
+                val friendJsonObject = jsonArray.getJSONObject(i)
+                val friend = User(friendJsonObject.getInt("id"), friendJsonObject.getString("name"))
+                FriendsContainer.addFriend(friend)
+            }
+            viewAdapter.notifyDataSetChanged()
+        }
+        friendRequest.executeAsync()
+    }
 }
+
+
