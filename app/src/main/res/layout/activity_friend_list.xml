@@ -54,4 +54,14 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/recyclerView_friends" />
 
+    <TextView
+        android:id="@+id/textView_user_help"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="8dp"
+        android:layout_marginStart="8dp"
+        android:text="@string/user_help_text"
+        app:layout_constraintBottom_toTopOf="@+id/recyclerView_friends"
+        app:layout_constraintStart_toEndOf="@+id/textView_user" />
+
 </android.support.constraint.ConstraintLayout>
