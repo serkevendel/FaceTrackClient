@@ -1,0 +1,3 @@
+package com.vsoft.facetrack.model
+
+data class User(var id: Int, var name: String)
