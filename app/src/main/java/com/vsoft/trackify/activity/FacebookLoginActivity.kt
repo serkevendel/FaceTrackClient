@@ -1,19 +1,21 @@
-package com.vsoft.facetrack
+package com.vsoft.trackify.activity
 
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import com.facebook.AccessToken
 import com.facebook.CallbackManager
 import com.facebook.FacebookCallback
 import com.facebook.FacebookException
 import com.facebook.login.LoginResult
 import com.facebook.login.widget.LoginButton
+import com.vsoft.trackify.R
 
 class FacebookLoginActivity : Activity() {
 
-    val callbackManager = CallbackManager.Factory.create()
-    var loginButton: LoginButton? = null
+    private val callbackManager = CallbackManager.Factory.create()
+    private var loginButton: LoginButton? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -28,11 +30,11 @@ class FacebookLoginActivity : Activity() {
             }
 
             override fun onCancel() {
-                TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+                Toast.makeText(applicationContext, "Login cancelled!", Toast.LENGTH_SHORT).show()
             }
 
             override fun onError(error: FacebookException?) {
-                TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+                Toast.makeText(applicationContext, error?.localizedMessage, Toast.LENGTH_SHORT).show()
             }
 
         })
@@ -55,7 +57,7 @@ class FacebookLoginActivity : Activity() {
         startActivity(intent)
     }
 
-    fun isLoggedIn(): Boolean {
+    private fun isLoggedIn(): Boolean {
         val accessToken = AccessToken.getCurrentAccessToken()
         return accessToken != null
     }

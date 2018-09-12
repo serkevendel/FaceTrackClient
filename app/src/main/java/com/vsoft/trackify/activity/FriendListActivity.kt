@@ -1,16 +1,21 @@
-package com.vsoft.facetrack
+package com.vsoft.trackify.activity
 
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
 import android.support.v7.widget.LinearLayoutManager
 import android.support.v7.widget.RecyclerView
+import android.view.Menu
+import android.view.MenuItem
 import android.widget.TextView
+import android.widget.Toast
 import com.facebook.AccessToken
 import com.facebook.AccessTokenTracker
 import com.facebook.GraphRequest
-import com.vsoft.facetrack.adapter.FriendsAdapter
-import com.vsoft.facetrack.friends.FriendsContainer
+import com.vsoft.trackify.R
+import com.vsoft.trackify.adapter.FriendsAdapter
+import com.vsoft.trackify.friends.FriendsContainer
+import com.vsoft.trackify.model.User
 
 
 class FriendListActivity : Activity() {
@@ -25,6 +30,7 @@ class FriendListActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_friend_list)
+
         userTextView = findViewById(R.id.textView_user)
         requestUserNameAndSetGreeting(AccessToken.getCurrentAccessToken())
 
@@ -41,6 +47,27 @@ class FriendListActivity : Activity() {
 
         //addDummyFriends() -for testing
         getFriends()
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+        val inflater = menuInflater
+        inflater.inflate(R.menu.options_menu, menu)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        // Handle item selection
+        return when (item.itemId) {
+            R.id.menu_settings -> {
+                showSettingsFragment()
+                true
+            }
+            R.id.menu_search -> {
+                Toast.makeText(this, "Search selected!", Toast.LENGTH_SHORT).show()
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
     }
 
     override fun onResume() {
@@ -111,6 +138,10 @@ class FriendListActivity : Activity() {
             }
         }
         (accessTokenTracker as AccessTokenTracker).startTracking()
+    }
+
+    private fun showSettingsFragment() {
+
     }
 }
 

@@ -1,12 +1,12 @@
-package com.vsoft.facetrack.adapter
+package com.vsoft.trackify.adapter
 
 import android.support.v7.widget.RecyclerView
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
-import com.vsoft.facetrack.R
-import com.vsoft.facetrack.User
+import com.vsoft.trackify.R
+import com.vsoft.trackify.model.User
 
 class FriendsAdapter(var friendsDataSet: MutableList<User>) : RecyclerView.Adapter<FriendsAdapter.ViewHolder>() {
 

@@ -1,4 +1,4 @@
-package com.vsoft.facetrack
+package com.vsoft.trackify
 
 import android.support.test.InstrumentationRegistry
 import android.support.test.runner.AndroidJUnit4

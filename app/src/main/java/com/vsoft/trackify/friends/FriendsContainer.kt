@@ -1,6 +1,6 @@
-package com.vsoft.facetrack.friends
+package com.vsoft.trackify.friends
 
-import com.vsoft.facetrack.User
+import com.vsoft.trackify.model.User
 
 object FriendsContainer {
 

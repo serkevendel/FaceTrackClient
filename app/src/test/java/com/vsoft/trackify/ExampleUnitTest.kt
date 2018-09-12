@@ -1,4 +1,4 @@
-package com.vsoft.facetrack
+package com.vsoft.trackify
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
