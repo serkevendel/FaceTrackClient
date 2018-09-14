@@ -1,10 +1,13 @@
 package com.vsoft.trackify.activity
 
-import android.app.Activity
+import android.app.SearchManager
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.support.v7.app.AppCompatActivity
 import android.support.v7.widget.LinearLayoutManager
 import android.support.v7.widget.RecyclerView
+import android.support.v7.widget.SearchView
 import android.view.Menu
 import android.view.MenuItem
 import android.widget.TextView
@@ -18,10 +21,11 @@ import com.vsoft.trackify.friends.FriendsContainer
 import com.vsoft.trackify.model.User
 
 
-class FriendListActivity : Activity() {
+class FriendListActivity : AppCompatActivity() {
     var userTextView: TextView? = null
     var userName: String = ""
     var accessTokenTracker: AccessTokenTracker? = null
+    lateinit var searchView: SearchView
 
     private lateinit var recyclerView: RecyclerView
     private lateinit var viewAdapter: FriendsAdapter
@@ -37,7 +41,11 @@ class FriendListActivity : Activity() {
         registerTokenChangedHandler()
 
         viewManager = LinearLayoutManager(this)
-        viewAdapter = FriendsAdapter(FriendsContainer.friends)
+        viewAdapter = FriendsAdapter(FriendsContainer.friends, object : FriendsAdapter.FriendsAdapterListener {
+            override fun onFriendSelected(user: User) {
+                Toast.makeText(applicationContext, "Selected friend with name: " + user.name, Toast.LENGTH_SHORT).show()
+            }
+        })
 
         recyclerView = findViewById<RecyclerView>(R.id.recyclerView_friends).apply {
             setHasFixedSize(true)
@@ -52,6 +60,28 @@ class FriendListActivity : Activity() {
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
         val inflater = menuInflater
         inflater.inflate(R.menu.options_menu, menu)
+
+        // Associate searchable configuration with the SearchView
+        val searchManager = getSystemService(Context.SEARCH_SERVICE) as SearchManager
+        searchView = menu?.findItem(R.id.menu_search)?.actionView as SearchView
+        searchView.setSearchableInfo(searchManager.getSearchableInfo(componentName))
+        searchView.maxWidth = Integer.MAX_VALUE
+
+        // listening to search query text change
+        searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
+            override fun onQueryTextSubmit(query: String): Boolean {
+                // filter recycler view when query submitted
+                viewAdapter.filter.filter(query)
+                return false
+            }
+
+            override fun onQueryTextChange(query: String): Boolean {
+                // filter recycler view when text is changed
+                viewAdapter.filter.filter(query)
+                return false
+            }
+        })
+
         return true
     }
 
@@ -78,6 +108,15 @@ class FriendListActivity : Activity() {
         }
     }
 
+    override fun onBackPressed() {
+        // close search view on back button pressed
+        if (!searchView.isIconified) {
+            searchView.isIconified = true
+            return
+        }
+        super.onBackPressed()
+    }
+
     private fun switchToFacebookLoginActivity() {
         val intent = Intent(this, FacebookLoginActivity::class.java)
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
@@ -97,7 +136,7 @@ class FriendListActivity : Activity() {
     private fun requestUserNameAndSetGreeting(accessToken: AccessToken?) {
         val request = GraphRequest.newMeRequest(
                 accessToken
-        ) { jsonObject, response ->
+        ) { jsonObject, _ ->
             userName = jsonObject.getString("first_name")
             userTextView?.text = "$userName!"
         }
@@ -111,7 +150,7 @@ class FriendListActivity : Activity() {
         val accessToken = AccessToken.getCurrentAccessToken()
         val friendRequest = GraphRequest.newMyFriendsRequest(
                 accessToken
-        ) { jsonArray, response ->
+        ) { jsonArray, _ ->
             // Application code for users friends
             FriendsContainer.clear()
             for (i in 0 until jsonArray.length()) {
