@@ -1,3 +1,5 @@
 package com.vsoft.trackify.model
 
-data class User(var id: Int, var name: String)
+import java.io.Serializable
+
+data class User(var id: String, var name: String): Serializable

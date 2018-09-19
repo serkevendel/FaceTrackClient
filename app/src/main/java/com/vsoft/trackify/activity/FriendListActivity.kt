@@ -1,9 +1,13 @@
 package com.vsoft.trackify.activity
 
 import android.app.SearchManager
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
+import android.content.pm.PackageManager
 import android.os.Bundle
+import android.support.v4.content.LocalBroadcastManager
 import android.support.v7.app.AppCompatActivity
 import android.support.v7.widget.LinearLayoutManager
 import android.support.v7.widget.RecyclerView
@@ -17,27 +21,38 @@ import com.facebook.AccessTokenTracker
 import com.facebook.GraphRequest
 import com.vsoft.trackify.R
 import com.vsoft.trackify.adapter.FriendsAdapter
-import com.vsoft.trackify.friends.FriendsContainer
+import com.vsoft.trackify.model.FriendsContainer
 import com.vsoft.trackify.model.User
+import com.vsoft.trackify.service.LocationSharingService
+import com.vsoft.trackify.util.PermissionUtils
+import com.vsoft.trackify.util.ResolvableApiExceptionHolder
 
 
 class FriendListActivity : AppCompatActivity() {
-    var userTextView: TextView? = null
-    var userName: String = ""
-    var accessTokenTracker: AccessTokenTracker? = null
-    lateinit var searchView: SearchView
+    private var userTextView: TextView? = null
+    private lateinit var currentUser: User
+    private var accessTokenTracker: AccessTokenTracker? = null
+    private lateinit var searchView: SearchView
 
     private lateinit var recyclerView: RecyclerView
     private lateinit var viewAdapter: FriendsAdapter
     private lateinit var viewManager: RecyclerView.LayoutManager
+
+    private val REQUEST_CHECK_SETTINGS = 12
+
+    private val broadcastReceiver: BroadcastReceiver = object: BroadcastReceiver(){
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val exception = ResolvableApiExceptionHolder.resolvableApiException
+            exception.startResolutionForResult(this@FriendListActivity,REQUEST_CHECK_SETTINGS)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_friend_list)
 
         userTextView = findViewById(R.id.textView_user)
-        requestUserNameAndSetGreeting(AccessToken.getCurrentAccessToken())
-
+        requestUserAndSetGreeting(AccessToken.getCurrentAccessToken())
         registerTokenChangedHandler()
 
         viewManager = LinearLayoutManager(this)
@@ -55,6 +70,52 @@ class FriendListActivity : AppCompatActivity() {
 
         //addDummyFriends() -for testing
         getFriends()
+    }
+
+    private fun tryToStartLocationService() {
+        if (PermissionUtils.checkForLocationPermissions(this)) {
+            enableSharing()
+        } else {
+            //Clear shared preferences so that a previous entry doesnt make sharing enable when the user did not give permission
+            disableSharing()
+            PermissionUtils.requestPermissions(this)
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        LocalBroadcastManager.getInstance(this).registerReceiver(broadcastReceiver,
+                object: IntentFilter("com.vsoft.trackify.service.RESOLVABLE_API_EXCEPTION"){})
+    }
+
+    override fun onPause() {
+        // Unregister since the activity is not visible
+        LocalBroadcastManager.getInstance(this)
+                .unregisterReceiver(broadcastReceiver)
+        super.onPause()
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if(resultCode == REQUEST_CHECK_SETTINGS){
+            //If user approved the settings, send back a broadcast to the service so it can continue
+            val intent = Intent("com.vsoft.trackify.activity.RESOLVABLE_API_EXCEPTION_RESOLVED")
+            LocalBroadcastManager.getInstance(this).sendBroadcast(intent)
+        } else {
+            disableSharing()
+            Toast.makeText(this,"Location sharing is disabled because you have not approved the settings!",Toast.LENGTH_LONG).show()
+        }
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        when (requestCode) {
+            PermissionUtils.PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION -> {
+                if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    enableSharing()
+                }
+            }
+        }
     }
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
@@ -93,18 +154,9 @@ class FriendListActivity : AppCompatActivity() {
                 true
             }
             R.id.menu_search -> {
-                Toast.makeText(this, "Search selected!", Toast.LENGTH_SHORT).show()
                 true
             }
             else -> super.onOptionsItemSelected(item)
-        }
-    }
-
-    override fun onResume() {
-        super.onResume()
-        if (userName == "") {
-            requestUserNameAndSetGreeting(AccessToken.getCurrentAccessToken())
-            userTextView?.text = userName
         }
     }
 
@@ -125,23 +177,20 @@ class FriendListActivity : AppCompatActivity() {
         startActivity(intent)
     }
 
-    private fun addDummyFriends() {
-        val user1 = User(1234, "Dummy Name1")
-        val user2 = User(2345, "Dummy Name2")
-        FriendsContainer.addFriend(user1)
-        FriendsContainer.addFriend(user2)
-        viewAdapter.notifyDataSetChanged()
-    }
 
-    private fun requestUserNameAndSetGreeting(accessToken: AccessToken?) {
+    private fun requestUserAndSetGreeting(accessToken: AccessToken?) {
         val request = GraphRequest.newMeRequest(
                 accessToken
         ) { jsonObject, _ ->
-            userName = jsonObject.getString("first_name")
+            val userName = jsonObject.getString("first_name")
+            val fullName = jsonObject.getString("name")
+            val id = jsonObject.getInt("id")
+            currentUser = User(id.toString(), fullName)
             userTextView?.text = "$userName!"
+            tryToStartLocationService()
         }
         val parameters = Bundle()
-        parameters.putString("fields", "first_name")
+        parameters.putString("fields", "id,name,first_name")
         request.parameters = parameters
         request.executeAsync()
     }
@@ -155,7 +204,7 @@ class FriendListActivity : AppCompatActivity() {
             FriendsContainer.clear()
             for (i in 0 until jsonArray.length()) {
                 val friendJsonObject = jsonArray.getJSONObject(i)
-                val friend = User(friendJsonObject.getInt("id"), friendJsonObject.getString("name"))
+                val friend = User(friendJsonObject.getInt("id").toString(), friendJsonObject.getString("name"))
                 FriendsContainer.addFriend(friend)
             }
             viewAdapter.notifyDataSetChanged()
@@ -163,8 +212,27 @@ class FriendListActivity : AppCompatActivity() {
         friendRequest.executeAsync()
     }
 
-    private fun isTokenValid(): Boolean {
-        return AccessToken.getCurrentAccessToken() != null
+    private fun sharingIsEnabled(): Boolean {
+        val sharedPref = this.getSharedPreferences(getString(R.string.preference_file_key), Context.MODE_PRIVATE)
+        return sharedPref.getBoolean(getString(R.string.toggle_sharing), false)
+    }
+
+    private fun disableSharing() {
+        val sharedPref = this.getSharedPreferences(getString(R.string.preference_file_key), Context.MODE_PRIVATE)
+        with(sharedPref.edit()) {
+            putBoolean(getString(com.vsoft.trackify.R.string.toggle_sharing), false)
+            apply()
+        }
+        //stopService(Intent(this,LocationSharingService::class.java))
+    }
+
+    private fun enableSharing() {
+        val sharedPref = this.getSharedPreferences(getString(R.string.preference_file_key), Context.MODE_PRIVATE)
+        with(sharedPref.edit()) {
+            putBoolean(getString(com.vsoft.trackify.R.string.toggle_sharing), true)
+            apply()
+        }
+        startService(Intent(this,LocationSharingService::class.java).apply { putExtra("user",currentUser) })
     }
 
     private fun registerTokenChangedHandler() {
@@ -180,7 +248,9 @@ class FriendListActivity : AppCompatActivity() {
     }
 
     private fun showSettingsFragment() {
-
+        val intent = Intent(this, SettingsActivity::class.java)
+        intent.putExtra("user", currentUser)
+        startActivity(intent)
     }
 }
 

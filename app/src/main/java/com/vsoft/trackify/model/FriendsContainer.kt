@@ -1,6 +1,4 @@
-package com.vsoft.trackify.friends
-
-import com.vsoft.trackify.model.User
+package com.vsoft.trackify.model
 
 object FriendsContainer {
 
