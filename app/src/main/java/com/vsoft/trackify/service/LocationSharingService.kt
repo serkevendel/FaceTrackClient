@@ -8,12 +8,19 @@ import android.location.Location
 import android.os.IBinder
 import android.support.v4.content.ContextCompat
 import android.support.v4.content.LocalBroadcastManager
+import android.util.Log
+import com.android.volley.Request
+import com.android.volley.Response
+import com.android.volley.toolbox.JsonObjectRequest
+import com.android.volley.toolbox.Volley
 import com.google.android.gms.common.api.ResolvableApiException
 import com.google.android.gms.location.*
 import com.google.android.gms.tasks.Task
 import com.vsoft.trackify.model.User
 import com.vsoft.trackify.util.ResolvableApiExceptionHolder
 import org.json.JSONObject
+import java.text.SimpleDateFormat
+import java.util.*
 
 
 class LocationSharingService : Service() {
@@ -31,7 +38,8 @@ class LocationSharingService : Service() {
     //val queue = Volley.newRequestQueue(this)
 
     companion object {
-        val BASE_URL = "12.0.0.2"
+        val BASE_URL = "http://10.0.2.2"
+        val PORT = "8080"
         var NOTIFY_INTERVAL_SECONDS = 10L
     }
 
@@ -80,21 +88,25 @@ class LocationSharingService : Service() {
     }
 
     private fun sendLocation(location: Location) {
-        val requestURL = "$BASE_URL/users"
+        val requestURL = "$BASE_URL:$PORT/users"
+        val queue = Volley.newRequestQueue(this)
         // Request a string response from the provided URL.
         val jsonData = JSONObject()
-
-        println(location)
-        /*
 
         jsonData.put("id", user.id)
                 .put("name", user.name)
                 .put("latitude", location.latitude)
                 .put("longitude", location.longitude)
-                .put("lastLocationDate", SimpleDateFormat("yyyy-MM-ddTHH:mm:ss").format(Date()))
+                .put("lastLocationDate", SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss").format(Date()))
         println(jsonData)
-         */
 
+        val currentLocationRequest = JsonObjectRequest(Request.Method.POST, requestURL, jsonData, Response.Listener {
+            Log.i("http_response","Received message:\n$it")
+        },Response.ErrorListener {
+            Log.i("http_response","Error happened!\n$it")
+        })
+
+        queue.add(currentLocationRequest)
     }
 
     private fun requestLocationUpdates() {
