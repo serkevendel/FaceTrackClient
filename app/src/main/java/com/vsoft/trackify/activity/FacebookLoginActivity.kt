@@ -22,6 +22,7 @@ class FacebookLoginActivity : Activity() {
         setContentView(R.layout.activity_facebook_login)
 
         loginButton = findViewById(R.id.login_button)
+        loginButton?.setReadPermissions("user_photos")
 
         //Register login callback
         loginButton?.registerCallback(callbackManager, object : FacebookCallback<LoginResult> {

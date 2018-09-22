@@ -15,7 +15,9 @@ import com.android.volley.toolbox.JsonObjectRequest
 import com.android.volley.toolbox.Volley
 import com.google.android.gms.common.api.ResolvableApiException
 import com.google.android.gms.location.*
+import com.google.android.gms.location.LocationRequest.PRIORITY_HIGH_ACCURACY
 import com.google.android.gms.tasks.Task
+import com.vsoft.trackify.R
 import com.vsoft.trackify.model.User
 import com.vsoft.trackify.util.ResolvableApiExceptionHolder
 import org.json.JSONObject
@@ -28,19 +30,15 @@ class LocationSharingService : Service() {
     lateinit var user: User
 
     val builder = LocationSettingsRequest.Builder()
-    val locationRequest = LocationRequest().apply {
-        interval = 5000
-        fastestInterval = 5000
-        priority = LocationRequest.PRIORITY_HIGH_ACCURACY
-    }
+    val locationRequest = LocationRequest()
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private var locationCallback: LocationCallback? = null
-    //val queue = Volley.newRequestQueue(this)
+    var locationRequestPeriodChangedBroadcastReceiver: BroadcastReceiver? = null
+    var resolvableApiExceptionResolvedBroadcastReceiver: BroadcastReceiver? = null
 
     companion object {
-        val BASE_URL = "http://10.0.2.2"
-        val PORT = "8080"
-        var NOTIFY_INTERVAL_SECONDS = 10L
+        const val BASE_URL = "http://10.0.2.2"
+        const val PORT = "8080"
     }
 
     override fun onBind(p0: Intent?): IBinder? {
@@ -52,14 +50,49 @@ class LocationSharingService : Service() {
 
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
-        builder.addLocationRequest(locationRequest)
+        //Create broadcast receivers
 
-        LocalBroadcastManager.getInstance(this).registerReceiver(object : BroadcastReceiver() {
+        locationRequestPeriodChangedBroadcastReceiver = object: BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                fusedLocationClient.removeLocationUpdates(locationCallback)
+                val timeInSeconds = intent!!.getIntExtra("interval", 5)
+                locationRequest.interval = timeInSeconds * 1000L
+
+                //register updates with the changed request
+                if (ContextCompat.checkSelfPermission(applicationContext, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                    fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, null)
+                }
+            }
+        }
+
+        resolvableApiExceptionResolvedBroadcastReceiver = object: BroadcastReceiver(){
             override fun onReceive(context: Context?, intent: Intent?) {
                 //User approved the settings, continue service
                 requestLocationUpdates()
             }
-        }, IntentFilter("com.vsoft.activity.RESOLVABLE_API_EXCEPTION_RESOLVED"))
+        }
+
+        var shareInterval: Long = 5 * 1000L //default to 5 sec
+        when (getLocationShareIntervalSetting()) {
+            0 -> shareInterval = 5 * 1000L
+            1 -> shareInterval = 60 * 1000L
+            2 -> shareInterval = 600 * 1000L
+        }
+
+        locationRequest.apply {
+            interval = shareInterval
+            priority = PRIORITY_HIGH_ACCURACY
+        }
+
+        builder.addLocationRequest(locationRequest)
+
+        //Register broadcast receivers
+        LocalBroadcastManager.getInstance(this).registerReceiver(resolvableApiExceptionResolvedBroadcastReceiver as BroadcastReceiver,
+                IntentFilter("com.vsoft.trackify.activity.RESOLVABLE_API_EXCEPTION_RESOLVED"))
+
+
+        LocalBroadcastManager.getInstance(this).registerReceiver(locationRequestPeriodChangedBroadcastReceiver as BroadcastReceiver,
+                IntentFilter("com.vsoft.trackify.activity.LOCATION_REQUEST_PERIOD_CHANGED"))
 
         val client: SettingsClient = LocationServices.getSettingsClient(this)
         val task: Task<LocationSettingsResponse> = client.checkLocationSettings(builder.build())
@@ -84,7 +117,7 @@ class LocationSharingService : Service() {
                 }
             }
         }
-        return START_STICKY
+        return START_NOT_STICKY
     }
 
     private fun sendLocation(location: Location) {
@@ -101,9 +134,9 @@ class LocationSharingService : Service() {
         println(jsonData)
 
         val currentLocationRequest = JsonObjectRequest(Request.Method.POST, requestURL, jsonData, Response.Listener {
-            Log.i("http_response","Received message:\n$it")
-        },Response.ErrorListener {
-            Log.i("http_response","Error happened!\n$it")
+            Log.i("http_response", "Received message:\n$it")
+        }, Response.ErrorListener {
+            Log.i("http_response", "Error happened!\n$it")
         })
 
         queue.add(currentLocationRequest)
@@ -124,13 +157,23 @@ class LocationSharingService : Service() {
         }
     }
 
-
     override fun onDestroy() {
         super.onDestroy()
         println("On destroy called!")
         if (locationCallback != null) {
             fusedLocationClient.removeLocationUpdates(locationCallback)
         }
+        if(resolvableApiExceptionResolvedBroadcastReceiver != null){
+            LocalBroadcastManager.getInstance(this).unregisterReceiver(this.resolvableApiExceptionResolvedBroadcastReceiver!!)
+        }
+        if(locationRequestPeriodChangedBroadcastReceiver != null){
+            LocalBroadcastManager.getInstance(this).unregisterReceiver(this.locationRequestPeriodChangedBroadcastReceiver!!)
+        }
+    }
+
+    private fun getLocationShareIntervalSetting(): Int {
+        val sharedPref = this.getSharedPreferences("com.vsoft.trackify.PREFERENCE_FILE_KEY", Context.MODE_PRIVATE)
+        return sharedPref.getInt(getString(R.string.share_interval), 0)
     }
 
 }

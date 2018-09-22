@@ -8,6 +8,7 @@ import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.support.v4.content.LocalBroadcastManager
+import android.widget.SeekBar
 import android.widget.Switch
 import android.widget.Toast
 import com.vsoft.trackify.R
@@ -21,6 +22,7 @@ class SettingsActivity : Activity() {
 
     lateinit var user: User
     lateinit var locationShareSwitch: Switch
+    lateinit var locationPeriodSeekBar: SeekBar
 
     private val REQUEST_CHECK_SETTINGS = 12
 
@@ -39,8 +41,10 @@ class SettingsActivity : Activity() {
         user = intent.getSerializableExtra("user") as User
 
         locationShareSwitch = findViewById(R.id.switch_location_sharing)
+        locationPeriodSeekBar = findViewById(R.id.seekBar_share_interval)
 
         locationShareSwitch.isChecked = isSharingTurnedOn()
+        locationPeriodSeekBar.progress = getLocationShareIntervalSetting()
 
         locationShareSwitch.setOnCheckedChangeListener { buttonView, isChecked ->
             if (isChecked) {
@@ -54,6 +58,23 @@ class SettingsActivity : Activity() {
                 turnLocationSharingOff()
             }
         }
+
+        locationPeriodSeekBar.setOnSeekBarChangeListener( object: SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                var timeInSeconds = 0
+                when(progress){
+                    0 -> timeInSeconds = 5
+                    1 -> timeInSeconds = 60
+                    2 -> timeInSeconds = 600
+                }
+                changeRequestPeriodSharedPreferences(progress)
+                sendRequestPeriodChangedBroadcast(timeInSeconds)
+
+            }
+            override fun onStartTrackingTouch(p0: SeekBar?) {}
+
+            override fun onStopTrackingTouch(p0: SeekBar?) {}
+        })
     }
 
     override fun onResume() {
@@ -110,6 +131,23 @@ class SettingsActivity : Activity() {
         return sharedPref.getBoolean(getString(R.string.toggle_sharing),false)
     }
 
+    private fun sendRequestPeriodChangedBroadcast(timeInSeconds: Int){
+        val intent = Intent("com.vsoft.trackify.activity.LOCATION_REQUEST_PERIOD_CHANGED")
+        intent.putExtra("interval",timeInSeconds)
+        LocalBroadcastManager.getInstance(this).sendBroadcast(intent)
+    }
 
+    private fun changeRequestPeriodSharedPreferences(periodSetting: Int){
+        val sharedPref = this.getSharedPreferences(getString(R.string.preference_file_key), Context.MODE_PRIVATE)
+        with(sharedPref.edit()) {
+            putInt(getString(R.string.share_interval), periodSetting)
+            apply()
+        }
+    }
+
+    private fun getLocationShareIntervalSetting(): Int {
+        val sharedPref = this.getSharedPreferences("com.vsoft.trackify.PREFERENCE_FILE_KEY", Context.MODE_PRIVATE)
+        return sharedPref.getInt(getString(R.string.share_interval),0)
+    }
 
 }

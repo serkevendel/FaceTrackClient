@@ -31,9 +31,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:checked="false"
-            android:text="@string/enable_location_sharing"
-            android:textOff="Disabled"
-            android:textOn="Enabled" />
+            android:text="@string/enable_location_sharing" />
 
     </LinearLayout>
 
@@ -55,12 +53,43 @@
             <SeekBar
                 android:id="@+id/seekBar_share_interval"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
+                android:layout_height="wrap_content"
+                android:max="2" />
 
-            <TextView
-                android:id="@+id/textview_data_sharing_interval_value"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center">
+
+                <TextView
+                    android:id="@+id/textview_data_sharing_interval_value_minimum"
+                    android:text="@string/interval_5_sec"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="12sp"/>
+
+                <TextView
+                    android:id="@+id/textview_data_sharing_interval_value_medium"
+                    android:text="@string/interval_1_min"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginLeft="16sp"
+                    android:layout_marginStart="16sp"
+                    android:textSize="12sp"/>
+
+                <TextView
+                    android:id="@+id/textview_data_sharing_interval_value_high"
+                    android:text="@string/interval_10_min"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginLeft="16sp"
+                    android:layout_marginStart="16sp"
+                    android:textSize="12sp"/>
+
+            </LinearLayout>
+
+
 
         </LinearLayout>
 
@@ -81,6 +110,7 @@
             android:text="@string/share_now" />
 
     </RelativeLayout>
+
 
 
 </LinearLayout>

@@ -19,6 +19,7 @@ import android.widget.Toast
 import com.facebook.AccessToken
 import com.facebook.AccessTokenTracker
 import com.facebook.GraphRequest
+import com.facebook.GraphRequestBatch
 import com.vsoft.trackify.R
 import com.vsoft.trackify.adapter.FriendsAdapter
 import com.vsoft.trackify.model.FriendsContainer
@@ -38,12 +39,14 @@ class FriendListActivity : AppCompatActivity() {
     private lateinit var viewAdapter: FriendsAdapter
     private lateinit var viewManager: RecyclerView.LayoutManager
 
+    private lateinit var accessToken: AccessToken
+
     private val REQUEST_CHECK_SETTINGS = 12
 
-    private val broadcastReceiver: BroadcastReceiver = object: BroadcastReceiver(){
+    private val broadcastReceiver: BroadcastReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             val exception = ResolvableApiExceptionHolder.resolvableApiException
-            exception.startResolutionForResult(this@FriendListActivity,REQUEST_CHECK_SETTINGS)
+            exception.startResolutionForResult(this@FriendListActivity, REQUEST_CHECK_SETTINGS)
         }
     }
 
@@ -51,9 +54,14 @@ class FriendListActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_friend_list)
 
-        userTextView = findViewById(R.id.textView_user)
-        requestUserAndSetGreeting(AccessToken.getCurrentAccessToken())
+        accessToken = AccessToken.getCurrentAccessToken()
+
         registerTokenChangedHandler()
+
+        userTextView = findViewById(R.id.textView_user)
+        //requestUserAndSetGreeting(accessToken)
+
+        getCurrentUserAndFriendsDataAsync()
 
         viewManager = LinearLayoutManager(this)
         viewAdapter = FriendsAdapter(FriendsContainer.friends, object : FriendsAdapter.FriendsAdapterListener {
@@ -69,7 +77,7 @@ class FriendListActivity : AppCompatActivity() {
         }
 
         //addDummyFriends() -for testing
-        getFriends()
+        //getFriends()
     }
 
     private fun tryToStartLocationService() {
@@ -85,7 +93,7 @@ class FriendListActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         LocalBroadcastManager.getInstance(this).registerReceiver(broadcastReceiver,
-                object: IntentFilter("com.vsoft.trackify.service.RESOLVABLE_API_EXCEPTION"){})
+                object : IntentFilter("com.vsoft.trackify.service.RESOLVABLE_API_EXCEPTION") {})
     }
 
     override fun onPause() {
@@ -97,13 +105,13 @@ class FriendListActivity : AppCompatActivity() {
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if(resultCode == REQUEST_CHECK_SETTINGS){
+        if (resultCode == REQUEST_CHECK_SETTINGS) {
             //If user approved the settings, send back a broadcast to the service so it can continue
             val intent = Intent("com.vsoft.trackify.activity.RESOLVABLE_API_EXCEPTION_RESOLVED")
             LocalBroadcastManager.getInstance(this).sendBroadcast(intent)
         } else {
             disableSharing()
-            Toast.makeText(this,"Location sharing is disabled because you have not approved the settings!",Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Location sharing is disabled because you have not approved the settings!", Toast.LENGTH_LONG).show()
         }
     }
 
@@ -177,44 +185,52 @@ class FriendListActivity : AppCompatActivity() {
         startActivity(intent)
     }
 
-
-    private fun requestUserAndSetGreeting(accessToken: AccessToken?) {
-        val request = GraphRequest.newMeRequest(
-                accessToken
-        ) { jsonObject, _ ->
-            val userName = jsonObject.getString("first_name")
-            val fullName = jsonObject.getString("name")
-            val id = jsonObject.getInt("id")
-            currentUser = User(id.toString(), fullName)
-            userTextView?.text = "$userName!"
+    private fun getCurrentUserAndFriendsDataAsync() {
+        val batch = GraphRequestBatch(
+                GraphRequest.newMeRequest(
+                        accessToken
+                ) { jsonObject, _ ->
+                    val userName = jsonObject.getString("first_name")
+                    val fullName = jsonObject.getString("name")
+                    val id = jsonObject.getInt("id")
+                    currentUser = User(id.toString(), fullName)
+                    userTextView?.text = "$userName!"
+                }.apply {
+                    parameters = Bundle().apply { putString("fields", "id,name,first_name") }
+                },
+                GraphRequest.newMyFriendsRequest(
+                        accessToken
+                ) { jsonArray, _ ->
+                    // Application code for users friends
+                    FriendsContainer.clear()
+                    val friendProfilePicturesBatch = GraphRequestBatch()
+                    for (i in 0 until jsonArray.length()) {
+                        val friendJsonObject = jsonArray.getJSONObject(i)
+                        val friend = User(friendJsonObject.getInt("id").toString(), friendJsonObject.getString("name"))
+                        friendProfilePicturesBatch.add(getPictureGraphRequest(friend, accessToken))
+                    }
+                    friendProfilePicturesBatch.addCallback {
+                        //We got all friends pictures, refresh list
+                        viewAdapter.notifyDataSetChanged()
+                    }
+                    friendProfilePicturesBatch.executeAsync()
+                }
+        )
+        batch.addCallback {
             tryToStartLocationService()
         }
-        val parameters = Bundle()
-        parameters.putString("fields", "id,name,first_name")
-        request.parameters = parameters
-        request.executeAsync()
+        batch.executeAsync()
     }
 
-    private fun getFriends() {
-        val accessToken = AccessToken.getCurrentAccessToken()
-        val friendRequest = GraphRequest.newMyFriendsRequest(
-                accessToken
-        ) { jsonArray, _ ->
-            // Application code for users friends
-            FriendsContainer.clear()
-            for (i in 0 until jsonArray.length()) {
-                val friendJsonObject = jsonArray.getJSONObject(i)
-                val friend = User(friendJsonObject.getInt("id").toString(), friendJsonObject.getString("name"))
-                FriendsContainer.addFriend(friend)
-            }
-            viewAdapter.notifyDataSetChanged()
+    private fun getPictureGraphRequest(friend: User, accessToken: AccessToken): GraphRequest {
+       return GraphRequest.newGraphPathRequest(
+                accessToken,
+                "/${friend.id}/picture"
+        ) {
+           //TODO: implement adding picture to user object properly
+            println(it)
+            FriendsContainer.addFriend(friend)
         }
-        friendRequest.executeAsync()
-    }
-
-    private fun sharingIsEnabled(): Boolean {
-        val sharedPref = this.getSharedPreferences(getString(R.string.preference_file_key), Context.MODE_PRIVATE)
-        return sharedPref.getBoolean(getString(R.string.toggle_sharing), false)
     }
 
     private fun disableSharing() {
@@ -232,7 +248,7 @@ class FriendListActivity : AppCompatActivity() {
             putBoolean(getString(com.vsoft.trackify.R.string.toggle_sharing), true)
             apply()
         }
-        startService(Intent(this,LocationSharingService::class.java).apply { putExtra("user",currentUser) })
+        startService(Intent(this, LocationSharingService::class.java).apply { putExtra("user", currentUser) })
     }
 
     private fun registerTokenChangedHandler() {
