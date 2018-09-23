@@ -9,6 +9,8 @@ import android.widget.Filterable
 import android.widget.TextView
 import com.vsoft.trackify.R
 import com.vsoft.trackify.model.User
+import com.vsoft.trackify.util.GlideApp
+import de.hdodenhof.circleimageview.CircleImageView
 
 
 class FriendsAdapter(var friendsDataSet: MutableList<User>, var friendsAdapterListener: FriendsAdapterListener) : RecyclerView.Adapter<FriendsAdapter.ViewHolder>(), Filterable {
@@ -34,13 +36,13 @@ class FriendsAdapter(var friendsDataSet: MutableList<User>, var friendsAdapterLi
                 filteredDataSet = filterResults.values as MutableList<User>
                 notifyDataSetChanged()
             }
-
         }
     }
 
     inner class ViewHolder(val view: View) : RecyclerView.ViewHolder(view) {
 
         var textView: TextView? = view.findViewById(R.id.textView_friend_name)
+        var profilePicture: CircleImageView = view.findViewById(R.id.profile_picture)
 
         init {
             view.setOnClickListener {
@@ -62,6 +64,7 @@ class FriendsAdapter(var friendsDataSet: MutableList<User>, var friendsAdapterLi
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         holder.textView?.text = filteredDataSet[position].name
+        GlideApp.with(holder.view).load(filteredDataSet[position].profilePictureUrl).into(holder.profilePicture)
     }
 
     override fun getItemCount() = filteredDataSet.size

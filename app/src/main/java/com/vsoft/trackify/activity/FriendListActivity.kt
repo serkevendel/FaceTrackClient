@@ -192,8 +192,9 @@ class FriendListActivity : AppCompatActivity() {
                 ) { jsonObject, _ ->
                     val userName = jsonObject.getString("first_name")
                     val fullName = jsonObject.getString("name")
-                    val id = jsonObject.getInt("id")
-                    currentUser = User(id.toString(), fullName)
+                    val id = jsonObject.getString("id")
+                    currentUser = User(id, fullName)
+                    //getCurrentUsersProfilePictureAsync()
                     userTextView?.text = "$userName!"
                 }.apply {
                     parameters = Bundle().apply { putString("fields", "id,name,first_name") }
@@ -206,8 +207,8 @@ class FriendListActivity : AppCompatActivity() {
                     val friendProfilePicturesBatch = GraphRequestBatch()
                     for (i in 0 until jsonArray.length()) {
                         val friendJsonObject = jsonArray.getJSONObject(i)
-                        val friend = User(friendJsonObject.getInt("id").toString(), friendJsonObject.getString("name"))
-                        friendProfilePicturesBatch.add(getPictureGraphRequest(friend, accessToken))
+                        val friend = User(friendJsonObject.getString("id"), friendJsonObject.getString("name"))
+                        friendProfilePicturesBatch.add(createPictureGraphRequest(friend, accessToken))
                     }
                     friendProfilePicturesBatch.addCallback {
                         //We got all friends pictures, refresh list
@@ -222,13 +223,14 @@ class FriendListActivity : AppCompatActivity() {
         batch.executeAsync()
     }
 
-    private fun getPictureGraphRequest(friend: User, accessToken: AccessToken): GraphRequest {
-       return GraphRequest.newGraphPathRequest(
+     private fun createPictureGraphRequest(friend: User, accessToken: AccessToken): GraphRequest {
+
+        return GraphRequest.newGraphPathRequest(
                 accessToken,
-                "/${friend.id}/picture"
+                "/${friend.id}/picture?redirect=false&height=160&width=160"
         ) {
-           //TODO: implement adding picture to user object properly
-            println(it)
+            var imageUrl = it.jsonObject.getJSONObject("data").getString("url")
+            friend.profilePictureUrl = imageUrl
             FriendsContainer.addFriend(friend)
         }
     }
@@ -239,7 +241,6 @@ class FriendListActivity : AppCompatActivity() {
             putBoolean(getString(com.vsoft.trackify.R.string.toggle_sharing), false)
             apply()
         }
-        //stopService(Intent(this,LocationSharingService::class.java))
     }
 
     private fun enableSharing() {
